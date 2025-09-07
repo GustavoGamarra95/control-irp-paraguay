@@ -8,7 +8,7 @@ import { calcularIva, calcularIRP } from '@/utlis/calculations';
 import { supabase } from '../lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import type { Income, Expense, Configuration, Statistics } from '@/types';
-import UserMenu from './UserMenu';
+import UserMenu from './UserMenu.tsx';
 
 const Index = () => {
   // State declarations (removed duplicates)
