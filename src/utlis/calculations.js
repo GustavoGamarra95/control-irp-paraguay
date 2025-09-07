@@ -1,4 +1,5 @@
-// Funciones de cálculo reutilizables
+
+
 export const formatearMoneda = (valor) => {
   return new Intl.NumberFormat('es-PY', {
     style: 'currency',
@@ -7,7 +8,7 @@ export const formatearMoneda = (valor) => {
   }).format(valor);
 };
 
-export const calcularIva = (items, tipo) => {
+export const calcularIva = (items) => {
   const iva5 = items.filter(i => i.tipoIva === '5').reduce((sum, i) => sum + (i.monto * 0.05), 0);
   const iva10 = items.filter(i => i.tipoIva === '10').reduce((sum, i) => sum + (i.monto * 0.10), 0);
   const exentas = items.filter(i => i.tipoIva === 'exenta').reduce((sum, i) => sum + i.monto, 0);
@@ -87,4 +88,5 @@ export const exportarExcel = (datos, nombreArchivo, columnas) => {
   link.setAttribute('href', url);
   link.setAttribute('download', `${nombreArchivo}_${new Date().toISOString().split('T')[0]}.csv`);
   link.click();
+  URL.revokeObjectURL(url);
 };
