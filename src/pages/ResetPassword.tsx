@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../hooks/useAuth';
 export default function ResetPassword() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -10,15 +11,20 @@ export default function ResetPassword() {
   const [recoveryMode, setRecoveryMode] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/password-recovery');
+      return;
+    }
     const params = new URLSearchParams(location.search);
     if (params.get('type') === 'recovery') {
       setRecoveryMode(true);
     } else {
       setRecoveryMode(false);
     }
-  }, [location.search]);
+  }, [location.search, user, authLoading, navigate]);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
