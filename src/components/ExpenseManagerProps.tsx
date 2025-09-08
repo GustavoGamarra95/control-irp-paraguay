@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, FileSpreadsheet, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatearMoneda, exportarExcel } from '@/utlis/calculations';
+import { supabase } from '@/lib/supabaseClient';
 import type { Expense, IVACalculation } from '@/types';
 
 interface ExpenseManagerProps {
@@ -24,12 +25,12 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     tipoIva: '10' as '5' | '10' | 'exenta',
     categoria: 'gastos' as 'gastos' | 'familiares'
   });
+  const [loading, setLoading] = useState(false);
 
   const agregarEgreso = () => {
     if (!nuevoEgreso.fecha || !nuevoEgreso.proveedor || !nuevoEgreso.monto) return;
-    
-    const egreso: Expense = {
-      id: Date.now(),
+    setLoading(true);
+    const egreso = {
       fecha: nuevoEgreso.fecha,
       proveedor: nuevoEgreso.proveedor,
       concepto: nuevoEgreso.concepto,
@@ -37,17 +38,38 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
       tipoIva: nuevoEgreso.tipoIva,
       categoria: nuevoEgreso.categoria
     };
-    
-    setEgresos([...egresos, egreso]);
-    setNuevoEgreso({
-      fecha: '',
-      proveedor: '',
-      concepto: '',
-      monto: '',
-      tipoIva: '10',
-      categoria: 'gastos'
-    });
+    supabase
+      .from('egresos')
+      .insert([egreso])
+      .then(({ error }) => {
+        if (!error) {
+          obtenerEgresos();
+          setNuevoEgreso({
+            fecha: '',
+            proveedor: '',
+            concepto: '',
+            monto: '',
+            tipoIva: '10',
+            categoria: 'gastos'
+          });
+        }
+        setLoading(false);
+      });
   };
+
+  const obtenerEgresos = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('egresos').select('*').order('fecha', { ascending: false });
+    if (!error && data) {
+      setEgresos(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    obtenerEgresos();
+    // eslint-disable-next-line
+  }, []);
 
   const eliminarEgreso = (id: number) => {
     setEgresos(egresos.filter(e => e.id !== id));

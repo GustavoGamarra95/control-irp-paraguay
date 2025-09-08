@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, FileSpreadsheet, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatearMoneda, exportarExcel } from '@/utlis/calculations';
+import { supabase } from '@/lib/supabaseClient';
 import type { Income, IVACalculation } from '@/types';
 
 interface IncomeManagerProps {
@@ -24,12 +25,12 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
     tipoIva: '10' as '5' | '10' | 'exenta',
     tipo: 'servicios' as 'servicios' | 'otros'
   });
+  const [loading, setLoading] = useState(false);
 
-  const agregarIngreso = () => {
+  const agregarIngreso = async () => {
     if (!nuevoIngreso.fecha || !nuevoIngreso.cliente || !nuevoIngreso.monto) return;
-    
-    const ingreso: Income = {
-      id: Date.now(),
+    setLoading(true);
+    const ingreso = {
       fecha: nuevoIngreso.fecha,
       cliente: nuevoIngreso.cliente,
       concepto: nuevoIngreso.concepto,
@@ -37,17 +38,38 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
       tipoIva: nuevoIngreso.tipoIva,
       tipo: nuevoIngreso.tipo
     };
-    
-    setIngresos([...ingresos, ingreso]);
-    setNuevoIngreso({
-      fecha: '',
-      cliente: '',
-      concepto: '',
-      monto: '',
-      tipoIva: '10',
-      tipo: 'servicios'
-    });
+    const { error } = await supabase.from('ingresos').insert([ingreso]);
+    if (!error) {
+      // Obtener los ingresos actualizados y actualizar el estado principal
+      const { data, error: fetchError } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false });
+      if (!fetchError && data) {
+        setIngresos(data);
+      }
+      setNuevoIngreso({
+        fecha: '',
+        cliente: '',
+        concepto: '',
+        monto: '',
+        tipoIva: '10',
+        tipo: 'servicios'
+      });
+    }
+    setLoading(false);
   };
+
+  const obtenerIngresos = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false });
+    if (!error && data) {
+      setIngresos(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    obtenerIngresos();
+    // eslint-disable-next-line
+  }, []);
 
   const eliminarIngreso = (id: number) => {
     setIngresos(ingresos.filter(i => i.id !== id));
