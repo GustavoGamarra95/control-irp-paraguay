@@ -9,6 +9,7 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [tokenValid, setTokenValid] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -21,8 +22,17 @@ export default function ResetPassword() {
     const params = new URLSearchParams(location.search);
     if (params.get('type') === 'recovery') {
       setRecoveryMode(true);
+      // Validar que el access_token esté presente
+      const accessToken = params.get('access_token');
+      if (accessToken && accessToken.length > 0) {
+        setTokenValid(true);
+      } else {
+        setTokenValid(false);
+        setError('El enlace de recuperación no es válido o ha expirado.');
+      }
     } else {
       setRecoveryMode(false);
+      setTokenValid(false);
     }
   }, [location.search, user, authLoading, navigate]);
 
@@ -69,32 +79,36 @@ export default function ResetPassword() {
         {recoveryMode ? 'Restablecer contraseña' : 'Solicitar cambio de contraseña'}
       </h2>
       {recoveryMode ? (
-        <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
-          <input
-            type="password"
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            placeholder="Nueva contraseña"
-            required
-            className="border px-3 py-2 rounded"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-primary text-white px-4 py-2 rounded"
-          >
-            {loading ? 'Actualizando...' : 'Actualizar contraseña'}
-          </button>
-          <button
-            type="button"
-            className="text-blue-600 underline"
-            onClick={() => navigate('/login')}
-          >
-            Volver al login
-          </button>
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-          {message && <div className="text-green-600 text-sm text-center">{message}</div>}
-        </form>
+        tokenValid ? (
+          <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="Nueva contraseña"
+              required
+              className="border px-3 py-2 rounded"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-primary text-white px-4 py-2 rounded"
+            >
+              {loading ? 'Actualizando...' : 'Actualizar contraseña'}
+            </button>
+            <button
+              type="button"
+              className="text-blue-600 underline"
+              onClick={() => navigate('/login')}
+            >
+              Volver al login
+            </button>
+            {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+            {message && <div className="text-green-600 text-sm text-center">{message}</div>}
+          </form>
+        ) : (
+          <div className="text-red-600 text-sm text-center mt-4">{error || 'El enlace de recuperación no es válido o ha expirado.'}</div>
+        )
       ) : (
         <>
           <p className="text-sm text-gray-600 mb-4 text-center">
