@@ -9,10 +9,27 @@ export const formatearMoneda = (valor) => {
 };
 
 export const calcularIva = (items) => {
-  const iva5 = items.filter(i => i.tipoIva === '5').reduce((sum, i) => sum + (i.monto * 0.05), 0);
-  const iva10 = items.filter(i => i.tipoIva === '10').reduce((sum, i) => sum + (i.monto * 0.10), 0);
-  const exentas = items.filter(i => i.tipoIva === 'exenta').reduce((sum, i) => sum + i.monto, 0);
-  return { iva5, iva10, exentas, total: iva5 + iva10 };
+  // Para IVA 5%, el monto de IVA es: monto * 5/105
+  const iva5 = items
+    .filter(i => i.tipo_iva === '5')
+    .reduce((sum, i) => sum + (i.monto * 5/105), 0);
+
+  // Para IVA 10%, el monto de IVA es: monto * 10/110
+  const iva10 = items
+    .filter(i => i.tipo_iva === '10')
+    .reduce((sum, i) => sum + (i.monto * 10/110), 0);
+
+  // Montos exentos
+  const exentas = items
+    .filter(i => i.tipo_iva === 'exenta')
+    .reduce((sum, i) => sum + i.monto, 0);
+
+  return { 
+    iva5: Math.round(iva5), 
+    iva10: Math.round(iva10), 
+    exentas, 
+    total: Math.round(iva5 + iva10) 
+  };
 };
 
 export const calcularIRP = (ingresos, egresos, configuracion) => {
@@ -25,12 +42,22 @@ export const calcularIRP = (ingresos, egresos, configuracion) => {
   // Ingresos de servicios personales (sin IVA)
   const ingresosServicios = ingresos
     .filter(i => i.tipo === 'servicios')
-    .reduce((sum, i) => sum + i.monto, 0) - ivaIngresos.total;
+    .reduce((sum, i) => {
+      // Descontar el IVA solo si no es exenta
+      if (i.tipo_iva === 'exenta') return sum + i.monto;
+      const iva = i.tipo_iva === '10' ? i.monto / 1.1 : i.monto / 1.05;
+      return sum + iva;
+    }, 0);
 
   // Egresos deducibles para servicios personales
   const egresosDeducibles = egresos
     .filter(e => e.categoria === 'gastos')
-    .reduce((sum, e) => sum + e.monto, 0) - ivaEgresos.total;
+    .reduce((sum, e) => {
+      // Descontar el IVA solo si no es exenta
+      if (e.tipo_iva === 'exenta') return sum + e.monto;
+      const iva = e.tipo_iva === '10' ? e.monto / 1.1 : e.monto / 1.05;
+      return sum + iva;
+    }, 0);
 
   // Deducciones por familiares a cargo (G. 12.000.000 por familiar)
   const deduccionFamiliares = configuracion.familiaresACargo * 12000000;

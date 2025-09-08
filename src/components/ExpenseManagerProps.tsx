@@ -27,34 +27,71 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
   });
   const [loading, setLoading] = useState(false);
 
-  const agregarEgreso = () => {
-    if (!nuevoEgreso.fecha || !nuevoEgreso.proveedor || !nuevoEgreso.monto) return;
+  const agregarEgreso = async () => {
+    if (!nuevoEgreso.fecha || !nuevoEgreso.proveedor || !nuevoEgreso.monto) {
+      alert('Por favor complete los campos obligatorios: Fecha, Proveedor y Monto');
+      return;
+    }
+
+    const montoNumerico = parseFloat(nuevoEgreso.monto);
+    if (isNaN(montoNumerico) || montoNumerico <= 0) {
+      alert('Por favor ingrese un monto válido mayor a 0');
+      return;
+    }
+
     setLoading(true);
+
+    // Obtener el usuario actual
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (!user || userError) {
+      alert('Debes iniciar sesión para agregar egresos');
+      setLoading(false);
+      return;
+    }
+    
     const egreso = {
       fecha: nuevoEgreso.fecha,
       proveedor: nuevoEgreso.proveedor,
-      concepto: nuevoEgreso.concepto,
-      monto: parseFloat(nuevoEgreso.monto),
-      tipoIva: nuevoEgreso.tipoIva,
-      categoria: nuevoEgreso.categoria
+      concepto: nuevoEgreso.concepto || '-',
+      monto: montoNumerico,
+      tipo_iva: nuevoEgreso.tipoIva,
+      categoria: nuevoEgreso.categoria,
+      user_id: user.id
     };
-    supabase
-      .from('egresos')
-      .insert([egreso])
-      .then(({ error }) => {
-        if (!error) {
-          obtenerEgresos();
-          setNuevoEgreso({
-            fecha: '',
-            proveedor: '',
-            concepto: '',
-            monto: '',
-            tipoIva: '10',
-            categoria: 'gastos'
-          });
-        }
-        setLoading(false);
-      });
+    try {
+      const { data: nuevoEgresoData, error: insertError } = await supabase
+        .from('egresos')
+        .insert([egreso])
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error al insertar:', insertError);
+        alert('Error al agregar el egreso. Por favor intente de nuevo.');
+        return;
+      }
+
+      if (nuevoEgresoData) {
+        // Actualizar el estado local inmediatamente
+        setEgresos([nuevoEgresoData, ...egresos]);
+        
+        // Limpiar el formulario
+        setNuevoEgreso({
+          fecha: '',
+          proveedor: '',
+          concepto: '',
+          monto: '',
+          tipoIva: '10',
+          categoria: 'gastos'
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Ocurrió un error al procesar su solicitud.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const obtenerEgresos = async () => {

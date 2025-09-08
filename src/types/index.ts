@@ -4,7 +4,7 @@ export interface Income {
   cliente: string;
   concepto: string;
   monto: number;
-  tipoIva: '5' | '10' | 'exenta';
+  tipo_iva: '5' | '10' | 'exenta';
   tipo: 'servicios' | 'otros';
 }
 

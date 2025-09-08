@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatearMoneda, exportarExcel } from '@/utlis/calculations';
+import { formatearNumero, desformatearNumero } from '@/lib/formatters';
 import { supabase } from '@/lib/supabaseClient';
 import type { Income, IVACalculation } from '@/types';
 
@@ -29,39 +30,80 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
     cliente: '',
     concepto: '',
     monto: '',
-    tipoIva: '10' as '5' | '10' | 'exenta',
+    tipo_iva: '10' as '5' | '10' | 'exenta',
     tipo: 'servicios' as 'servicios' | 'otros'
   });
   const [loading, setLoading] = useState(false);
 
   const agregarIngreso = async () => {
-    if (!nuevoIngreso.fecha || !nuevoIngreso.cliente || !nuevoIngreso.monto) return;
-    setLoading(true);
-    const ingreso = {
-      fecha: nuevoIngreso.fecha,
-      cliente: nuevoIngreso.cliente,
-      concepto: nuevoIngreso.concepto,
-      monto: parseFloat(nuevoIngreso.monto),
-      tipoIva: nuevoIngreso.tipoIva,
-      tipo: nuevoIngreso.tipo
-    };
-    const { error } = await supabase.from('ingresos').insert([ingreso]);
-    if (!error) {
-      // Obtener los ingresos actualizados y actualizar el estado principal
-      const { data, error: fetchError } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false });
-      if (!fetchError && data) {
-        setIngresos(data);
+    try {
+      // Validaciones
+      if (!nuevoIngreso.fecha || !nuevoIngreso.cliente || !nuevoIngreso.monto) {
+        alert('Por favor complete los campos obligatorios: Fecha, Cliente y Monto');
+        return;
       }
-      setNuevoIngreso({
-        fecha: '',
-        cliente: '',
-        concepto: '',
-        monto: '',
-        tipoIva: '10',
-        tipo: 'servicios'
-      });
+
+      // Validar que el monto sea un número válido
+      const montoSinFormato = desformatearNumero(nuevoIngreso.monto);
+      const montoNumerico = parseInt(montoSinFormato);
+      if (isNaN(montoNumerico) || montoNumerico <= 0) {
+        alert('Por favor ingrese un monto válido mayor a 0');
+        return;
+      }
+
+      setLoading(true);
+
+      // Obtener el usuario actual
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        alert('Debes iniciar sesión para agregar ingresos');
+        setLoading(false);
+        return;
+      }
+      
+      const ingreso = {
+        fecha: nuevoIngreso.fecha,
+        cliente: nuevoIngreso.cliente,
+        concepto: nuevoIngreso.concepto || '-',
+        monto: montoNumerico,
+        tipo_iva: nuevoIngreso.tipo_iva,
+        tipo: nuevoIngreso.tipo,
+        user_id: user.id
+      };
+
+      const { data: nuevoIngresoData, error: insertError } = await supabase
+        .from('ingresos')
+        .insert([ingreso])
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error al insertar:', insertError);
+        alert('Error al agregar el ingreso. Por favor intente de nuevo.');
+        return;
+      }
+
+      if (nuevoIngresoData) {
+        // Actualizar el estado local inmediatamente
+        setIngresos([nuevoIngresoData, ...ingresos]);
+        
+        // Limpiar el formulario
+        setNuevoIngreso({
+          fecha: '',
+          cliente: '',
+          concepto: '',
+          monto: '',
+          tipo_iva: '10',
+          tipo: 'servicios'
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Ocurrió un error al procesar su solicitud.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const obtenerIngresos = async () => {
@@ -88,9 +130,9 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
       i.cliente,
       i.concepto,
       i.monto,
-      i.tipoIva === 'exenta' ? 'Exenta' : `${i.tipoIva}%`,
+      i.tipo_iva === 'exenta' ? 'Exenta' : `${i.tipo_iva}%`,
       i.tipo === 'servicios' ? 'Servicios' : 'Otros',
-      i.tipoIva === 'exenta' ? 0 : i.monto * (parseFloat(i.tipoIva) / 100)
+      i.tipo_iva === 'exenta' ? 0 : i.monto * (parseFloat(i.tipo_iva) / 100)
     ]);
 
     const columnas = ['Fecha', 'Cliente', 'Concepto', 'Monto', 'Tipo IVA', 'Tipo', 'IVA Calculado'];
@@ -134,15 +176,22 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
               onChange={(e) => setNuevoIngreso({...nuevoIngreso, concepto: e.target.value})}
             />
             <Input
-              type="number"
+              type="text"
+              inputMode="numeric"
               placeholder="Monto (₲)"
               value={nuevoIngreso.monto}
-              onChange={(e) => setNuevoIngreso({...nuevoIngreso, monto: e.target.value})}
+              onChange={(e) => {
+                const rawValue = desformatearNumero(e.target.value);
+                if (rawValue === '' || /^\d+$/.test(rawValue)) {
+                  const formattedValue = formatearNumero(rawValue);
+                  setNuevoIngreso({...nuevoIngreso, monto: formattedValue});
+                }
+              }}
             />
             <Select 
-              value={nuevoIngreso.tipoIva} 
+              value={nuevoIngreso.tipo_iva} 
               onValueChange={(value: '5' | '10' | 'exenta') => 
-                setNuevoIngreso({...nuevoIngreso, tipoIva: value})
+                setNuevoIngreso({...nuevoIngreso, tipo_iva: value})
               }
             >
               <SelectTrigger>
@@ -171,10 +220,20 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
             <Button 
               variant="income"
               onClick={agregarIngreso}
-              className="md:col-span-3"
+              disabled={loading}
+              className="md:col-span-3 relative"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Ingreso
+              {loading ? (
+                <>
+                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Agregando...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Ingreso
+                </>
+              )}
             </Button>
           </div>
 
@@ -200,8 +259,8 @@ export function IncomeManager({ ingresos, setIngresos, ivaIngresos, totalIngreso
                     <td className="px-4 py-3 text-sm">{ingreso.concepto}</td>
                     <td className="px-4 py-3 text-sm font-bold">{formatearMoneda(ingreso.monto)}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={ingreso.tipoIva === 'exenta' ? 'secondary' : 'default'}>
-                        {ingreso.tipoIva === 'exenta' ? 'Exenta' : `${ingreso.tipoIva}%`}
+                      <Badge variant={ingreso.tipo_iva === 'exenta' ? 'secondary' : 'default'}>
+                        {ingreso.tipo_iva === 'exenta' ? 'Exenta' : `${ingreso.tipo_iva}%`}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
