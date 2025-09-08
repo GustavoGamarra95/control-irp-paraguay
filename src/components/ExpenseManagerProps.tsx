@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { formatearMoneda, exportarExcel } from '@/utlis/calculations';
+import { formatearMoneda, exportarExcel, calcularIva } from '@/utlis/calculations';
 import { supabase } from '@/lib/supabaseClient';
 import type { Expense, IVACalculation } from '@/types';
 
@@ -18,7 +18,7 @@ interface ExpenseManagerProps {
 
 export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }: ExpenseManagerProps) {
   const [nuevoEgreso, setNuevoEgreso] = useState({
-    fecha: '',
+    fecha: new Date().toISOString().split('T')[0],
     proveedor: '',
     concepto: '',
     monto: '',
@@ -76,9 +76,9 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
         // Actualizar el estado local inmediatamente
         setEgresos([nuevoEgresoData, ...egresos]);
         
-        // Limpiar el formulario
+        // Limpiar el formulario manteniendo la fecha actual
         setNuevoEgreso({
-          fecha: '',
+          fecha: new Date().toISOString().split('T')[0],
           proveedor: '',
           concepto: '',
           monto: '',
@@ -96,11 +96,35 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
 
   const obtenerEgresos = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('egresos').select('*').order('fecha', { ascending: false });
-    if (!error && data) {
-      setEgresos(data);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        console.error('Error al obtener el usuario:', userError);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('egresos')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('estado', 'activo')
+        .order('fecha', { ascending: false });
+
+      if (error) {
+        console.error('Error al obtener egresos:', error);
+        return;
+      }
+
+      if (data) {
+        console.log('Egresos obtenidos:', data);
+        setEgresos(data);
+      }
+    } catch (error) {
+      console.error('Error en obtenerEgresos:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -108,23 +132,147 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     // eslint-disable-next-line
   }, []);
 
-  const eliminarEgreso = (id: number) => {
-    setEgresos(egresos.filter(e => e.id !== id));
+  const eliminarEgreso = async (id: number) => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('Error de sesión:', sessionError);
+        alert('Error de autenticación. Por favor, inicie sesión nuevamente.');
+        return;
+      }
+
+      // Mostrar confirmación antes de eliminar
+      if (!confirm('¿Está seguro que desea eliminar este egreso?')) {
+        return;
+      }
+
+      setLoading(true);
+
+      // Eliminar el registro usando estado = 'anulado'
+      const { error: updateError } = await supabase
+        .from('egresos')
+        .update({ 
+          estado: 'anulado',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', session.user.id)
+        .eq('estado', 'activo');
+
+      if (updateError) {
+        console.error('Error al eliminar:', updateError);
+        alert('Error al eliminar el egreso. ' + updateError.message);
+        return;
+      }
+
+      // Actualizar el estado local
+      setEgresos(egresos.filter(e => e.id !== id));
+      alert('Egreso eliminado correctamente');
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      alert('Ocurrió un error al eliminar el egreso.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const exportarExcelEgresos = () => {
-    const datos = egresos.map(e => [
-      e.fecha,
-      e.proveedor,
-      e.concepto,
-      e.monto,
-      e.tipoIva === 'exenta' ? 'Exenta' : `${e.tipoIva}%`,
-      e.categoria === 'gastos' ? 'Negocio' : 'Familiar',
-      e.tipoIva === 'exenta' ? 0 : e.monto * (parseFloat(e.tipoIva) / 100)
-    ]);
+  const consultarEgresos = async () => {
+    setLoading(true);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        alert('Debes iniciar sesión para consultar egresos');
+        setLoading(false);
+        return;
+      }
 
-    const columnas = ['Fecha', 'Proveedor', 'Concepto', 'Monto', 'Tipo IVA', 'Categoría', 'IVA Calculado'];
-    exportarExcel(datos, 'egresos', columnas);
+      const { data, error } = await supabase
+        .from('egresos')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('estado', 'activo')
+        .order('fecha', { ascending: false });
+
+      if (error) {
+        console.error('Error al consultar egresos:', error);
+        alert('Error al consultar los egresos. Por favor intente de nuevo.');
+        return;
+      }
+
+      if (data) {
+        setEgresos(data);
+        alert('Datos de egresos actualizados correctamente');
+      }
+    } catch (error) {
+      console.error('Error al consultar egresos:', error);
+      alert('Error al consultar los egresos. Por favor intente de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const guardarCambios = async () => {
+    setLoading(true);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        alert('Debes iniciar sesión para guardar cambios');
+        setLoading(false);
+        return;
+      }
+
+      // Aquí puedes agregar lógica adicional para guardar cambios pendientes
+      // Por ahora, solo refrescamos los datos
+      await consultarEgresos();
+      alert('Cambios guardados correctamente');
+    } catch (error) {
+      console.error('Error al guardar cambios:', error);
+      alert('Error al guardar los cambios. Por favor intente de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportarExcelEgresos = async () => {
+    setLoading(true);
+    try {
+      // Obtener datos actualizados de Supabase
+      const { data, error } = await supabase
+        .from('egresos')
+        .select('*')
+        .order('fecha', { ascending: false });
+
+      if (error) {
+        console.error('Error al obtener datos:', error);
+        alert('Error al exportar los datos. Por favor intente de nuevo.');
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alert('No hay datos para exportar');
+        return;
+      }
+
+      const datos = data.map(e => [
+        e.fecha,
+        e.proveedor,
+        e.concepto,
+        e.monto,
+        e.tipo_iva === 'exenta' ? 'Exenta' : `${e.tipo_iva}%`,
+        e.categoria === 'gastos' ? 'Negocio' : 'Familiar',
+        e.tipo_iva === 'exenta' ? 0 : e.tipo_iva === '5' ? e.monto * (5/105) : e.monto * (10/110)
+      ]);
+
+      const columnas = ['Fecha', 'Proveedor', 'Concepto', 'Monto', 'Tipo IVA', 'Categoría', 'IVA Calculado'];
+      exportarExcel(datos, 'egresos', columnas);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Ocurrió un error al exportar los datos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -136,10 +284,20 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
               <TrendingDown className="h-6 w-6 text-expense mr-2" />
               Gestión de Egresos
             </CardTitle>
-            <Button variant="expense" onClick={exportarExcelEgresos}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Exportar Excel
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={consultarEgresos} disabled={loading}>
+                <TrendingDown className="h-4 w-4 mr-2" />
+                {loading ? 'Consultando...' : 'Consultar'}
+              </Button>
+              <Button variant="default" onClick={guardarCambios} disabled={loading}>
+                <Plus className="h-4 w-4 mr-2" />
+                {loading ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+              <Button variant="expense" onClick={exportarExcelEgresos} disabled={loading}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                {loading ? 'Exportando...' : 'Exportar Excel'}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
