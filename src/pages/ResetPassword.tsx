@@ -42,11 +42,23 @@ export default function ResetPassword() {
     setLoading(true);
     setError('');
     setMessage('');
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) setError(error.message);
-    else {
+
+    // Validar la contraseña
+    if (newPassword.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
       setMessage('Contraseña actualizada correctamente. Ahora puedes iniciar sesión.');
       setTimeout(() => navigate('/login'), 2000);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
     setLoading(false);
   };

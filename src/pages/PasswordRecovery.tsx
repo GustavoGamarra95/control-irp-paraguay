@@ -17,33 +17,58 @@ export default function PasswordRecovery() {
     e.preventDefault();
     setError('');
     setMessage('');
+    
+    // Validaciones básicas
     if (!currentPassword || !newPassword || !repeatPassword) {
       setError('Completa todos los campos.');
       return;
     }
+
+    // Validar longitud mínima
+    if (newPassword.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+
+    // Validar que las contraseñas coincidan
     if (newPassword !== repeatPassword) {
       setError('Las contraseñas nuevas no coinciden.');
       return;
     }
-    setLoading(true);
-    // Supabase no permite validar la contraseña actual directamente, así que se debe reautenticar
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    });
-    if (signInError) {
-      setError('La contraseña actual es incorrecta.');
-      setLoading(false);
+
+    // Validar que la nueva contraseña sea diferente a la actual
+    if (newPassword === currentPassword) {
+      setError('La nueva contraseña debe ser diferente a la actual.');
       return;
     }
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-    if (updateError) {
-      setError(updateError.message);
-    } else {
+
+    setLoading(true);
+    try {
+      // Reautenticar con la contraseña actual
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      
+      if (signInError) {
+        setError('La contraseña actual es incorrecta.');
+        return;
+      }
+
+      // Actualizar la contraseña
+      const { error: updateError } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      });
+      
+      if (updateError) throw updateError;
+      
       setMessage('Contraseña actualizada correctamente.');
       setTimeout(() => navigate('/'), 2000);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
