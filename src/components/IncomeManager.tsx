@@ -38,6 +38,45 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
   });
   const [loading, setLoading] = useState(false);
 
+  const obtenerIngresos = async () => {
+    setLoading(true);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        console.error('Error al obtener el usuario:', userError);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('ingresos')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('estado', 'activo')
+        .order('fecha', { ascending: false });
+
+      if (error) {
+        console.error('Error al obtener ingresos:', error);
+        alert('Error al consultar los ingresos. Por favor, intente de nuevo.');
+        return;
+      }
+
+      if (data) {
+        setIngresos(data);
+      }
+    } catch (error) {
+      console.error('Error en obtenerIngresos:', error);
+      alert('Ocurrió un error al obtener los ingresos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar ingresos al montar el componente
+  useEffect(() => {
+    obtenerIngresos();
+  }, []);
+
   const agregarIngreso = async () => {
     try {
       // Validaciones
@@ -310,145 +349,170 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
   };
 
   return (
-    <div className="space-y-6">
+        <div className="space-y-6">
       <Card className="shadow-medium">
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle className="flex items-center">
               <TrendingUp className="h-6 w-6 text-income mr-2" />
               Gestión de Ingresos
             </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={consultarIngresos} disabled={loading}>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button className="flex-1 sm:flex-initial" variant="outline" onClick={obtenerIngresos} disabled={loading}>
                 <TrendingUp className="h-4 w-4 mr-2" />
-                {loading ? 'Consultando...' : 'Consultar'}
+                <span className="hidden sm:inline">{loading ? 'Consultando...' : 'Consultar'}</span>
+                <span className="sm:hidden">Consultar</span>
               </Button>
-              <Button variant="default" onClick={guardarCambios} disabled={loading}>
+              <Button className="flex-1 sm:flex-initial" variant="income" onClick={agregarIngreso} disabled={loading}>
                 <Plus className="h-4 w-4 mr-2" />
-                {loading ? 'Guardando...' : 'Guardar Cambios'}
+                <span className="hidden sm:inline">{loading ? 'Guardando...' : 'Guardar'}</span>
+                <span className="sm:hidden">Guardar</span>
               </Button>
-              <Button variant="income" onClick={exportarExcelIngresos} disabled={loading}>
+              <Button className="flex-1 sm:flex-initial" variant="default" onClick={exportarExcelIngresos} disabled={loading}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
-                {loading ? 'Exportando...' : 'Exportar Excel'}
+                <span className="hidden sm:inline">{loading ? 'Exportando...' : 'Exportar Excel'}</span>
+                <span className="sm:hidden">Excel</span>
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {/* Formulario de nuevo ingreso */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-6 bg-muted rounded-lg">
-            <Input
-              type="date"
-              value={nuevoIngreso.fecha}
-              onChange={(e) => setNuevoIngreso({...nuevoIngreso, fecha: e.target.value})}
-              placeholder="Fecha"
-            />
-            <Input
-              type="text"
-              placeholder="Cliente/Empleador"
-              value={nuevoIngreso.cliente}
-              onChange={(e) => setNuevoIngreso({...nuevoIngreso, cliente: e.target.value})}
-            />
-            <Input
-              type="text"
-              placeholder="Concepto"
-              value={nuevoIngreso.concepto}
-              onChange={(e) => setNuevoIngreso({...nuevoIngreso, concepto: e.target.value})}
-            />
-            <Input
-              type="text"
-              inputMode="numeric"
-              placeholder="Monto (₲)"
-              value={nuevoIngreso.monto}
-              onChange={(e) => {
-                const rawValue = desformatearNumero(e.target.value);
-                if (rawValue === '' || /^\d+$/.test(rawValue)) {
-                  const formattedValue = formatearNumero(rawValue);
-                  setNuevoIngreso({...nuevoIngreso, monto: formattedValue});
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 p-4 sm:p-6 bg-muted rounded-lg">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha *</label>
+              <Input
+                type="date"
+                value={nuevoIngreso.fecha}
+                onChange={(e) => setNuevoIngreso({...nuevoIngreso, fecha: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cliente/Empleador *</label>
+              <Input
+                type="text"
+                placeholder="Nombre del cliente"
+                value={nuevoIngreso.cliente}
+                onChange={(e) => setNuevoIngreso({...nuevoIngreso, cliente: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <label className="text-sm font-medium">Concepto</label>
+              <Input
+                type="text"
+                placeholder="Descripción del ingreso"
+                value={nuevoIngreso.concepto}
+                onChange={(e) => setNuevoIngreso({...nuevoIngreso, concepto: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Monto *</label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="₲ 0"
+                value={nuevoIngreso.monto}
+                onChange={(e) => {
+                  const rawValue = desformatearNumero(e.target.value);
+                  if (rawValue === '' || /^\d+$/.test(rawValue)) {
+                    const formattedValue = formatearNumero(rawValue);
+                    setNuevoIngreso({...nuevoIngreso, monto: formattedValue});
+                  }
+                }}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo de IVA *</label>
+              <Select 
+                value={nuevoIngreso.tipo_iva} 
+                onValueChange={(value: '5' | '10' | 'exenta') => 
+                  setNuevoIngreso({...nuevoIngreso, tipo_iva: value})
                 }
-              }}
-            />
-            <Select 
-              value={nuevoIngreso.tipo_iva} 
-              onValueChange={(value: '5' | '10' | 'exenta') => 
-                setNuevoIngreso({...nuevoIngreso, tipo_iva: value})
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo IVA" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">IVA 10%</SelectItem>
-                <SelectItem value="5">IVA 5%</SelectItem>
-                <SelectItem value="exenta">Exenta</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select 
-              value={nuevoIngreso.tipo} 
-              onValueChange={(value: 'servicios' | 'otros') => 
-                setNuevoIngreso({...nuevoIngreso, tipo: value})
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de Ingreso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="servicios">Servicios Personales</SelectItem>
-                <SelectItem value="otros">Otras Rentas</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              variant="income"
-              onClick={agregarIngreso}
-              disabled={loading}
-              className="md:col-span-3 relative"
-            >
-              {loading ? (
-                <>
-                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Agregando...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Ingreso
-                </>
-              )}
-            </Button>
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione IVA" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">IVA 10%</SelectItem>
+                  <SelectItem value="5">IVA 5%</SelectItem>
+                  <SelectItem value="exenta">Exenta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo de Ingreso *</label>
+              <Select 
+                value={nuevoIngreso.tipo} 
+                onValueChange={(value: 'servicios' | 'otros') => 
+                  setNuevoIngreso({...nuevoIngreso, tipo: value})
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="servicios">Servicios Personales</SelectItem>
+                  <SelectItem value="otros">Otras Rentas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Button 
+                variant="income"
+                onClick={agregarIngreso}
+                className="w-full mt-6"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span className="hidden sm:inline">Agregando...</span>
+                    <span className="sm:hidden">...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Agregar Ingreso</span>
+                    <span className="sm:hidden">Agregar</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Tabla de ingresos */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto border rounded-lg">
             <table className="min-w-full table-auto">
               <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Cliente</th>
+                  <th className="sticky left-0 z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
+                  <th className="sticky left-[120px] z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Cliente</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Concepto</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Monto</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">IVA</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tipo</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Acciones</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-foreground whitespace-nowrap">Monto</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">IVA</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Tipo</th>
+                  <th className="sticky right-0 z-10 bg-muted px-4 py-3 text-center text-sm font-medium text-foreground">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {ingresos.map((ingreso) => (
                   <tr key={ingreso.id} className="hover:bg-muted/50 transition-smooth">
-                    <td className="px-4 py-3 text-sm">{ingreso.fecha}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{ingreso.cliente}</td>
+                    <td className="sticky left-0 z-10 bg-white hover:bg-muted/50 px-4 py-3 text-sm">{ingreso.fecha}</td>
+                    <td className="sticky left-[120px] z-10 bg-white hover:bg-muted/50 px-4 py-3 text-sm font-medium">{ingreso.cliente}</td>
                     <td className="px-4 py-3 text-sm">{ingreso.concepto}</td>
-                    <td className="px-4 py-3 text-sm font-bold">{formatearMoneda(ingreso.monto)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-sm font-bold text-right whitespace-nowrap">{formatearMoneda(ingreso.monto)}</td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
                       <Badge variant={ingreso.tipo_iva === 'exenta' ? 'secondary' : 'default'}>
                         {ingreso.tipo_iva === 'exenta' ? 'Exenta' : `${ingreso.tipo_iva}%`}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
                       <Badge variant={ingreso.tipo === 'servicios' ? 'default' : 'secondary'}>
                         {ingreso.tipo === 'servicios' ? 'Servicios' : 'Otros'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="sticky right-0 z-10 bg-white hover:bg-muted/50 px-4 py-3 text-center">
                       <Button
                         variant="destructive"
                         size="sm"
@@ -465,14 +529,32 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
           </div>
 
           {/* Resumen de ingresos */}
-          <div className="mt-6 p-6 bg-income-light rounded-lg border border-income/20">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-bold text-lg">Total Ingresos:</span>
-              <span className="text-2xl font-bold text-income">{formatearMoneda(totalIngresos)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">IVA Total:</span>
-              <span className="font-medium text-income">{formatearMoneda(ivaIngresos.total)}</span>
+          <div className="mt-6 p-4 sm:p-6 bg-income-light rounded-lg border border-income/20">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-base sm:text-lg">Total Ingresos:</span>
+                  <span className="text-xl sm:text-2xl font-bold text-income">{formatearMoneda(totalIngresos)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">IVA Total:</span>
+                  <span className="font-medium text-income">{formatearMoneda(ivaIngresos.total)}</span>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex justify-between items-center">
+                  <span>Servicios Personales:</span>
+                  <span className="font-medium">{formatearMoneda(ingresos.reduce((total, ingreso) => 
+                    ingreso.tipo === 'servicios' ? total + (ingreso.monto || 0) : total, 0
+                  ))}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Otras Rentas:</span>
+                  <span className="font-medium">{formatearMoneda(ingresos.reduce((total, ingreso) => 
+                    ingreso.tipo === 'otros' ? total + (ingreso.monto || 0) : total, 0
+                  ))}</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

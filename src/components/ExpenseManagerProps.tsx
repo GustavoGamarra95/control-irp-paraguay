@@ -249,134 +249,160 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     <div className="space-y-6">
       <Card className="shadow-medium">
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle className="flex items-center">
               <TrendingDown className="h-6 w-6 text-expense mr-2" />
               Gestión de Egresos
             </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={obtenerEgresos} disabled={loading}>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button className="flex-1 sm:flex-initial" variant="outline" onClick={obtenerEgresos} disabled={loading}>
                 <TrendingDown className="h-4 w-4 mr-2" />
-                {loading ? 'Consultando...' : 'Consultar'}
+                <span className="hidden sm:inline">{loading ? 'Consultando...' : 'Consultar'}</span>
+                <span className="sm:hidden">Consultar</span>
               </Button>
-              <Button variant="expense" onClick={agregarEgreso} disabled={loading}>
+              <Button className="flex-1 sm:flex-initial" variant="expense" onClick={agregarEgreso} disabled={loading}>
                 <Plus className="h-4 w-4 mr-2" />
-                {loading ? 'Guardando...' : 'Guardar'}
+                <span className="hidden sm:inline">{loading ? 'Guardando...' : 'Guardar'}</span>
+                <span className="sm:hidden">Guardar</span>
               </Button>
-              <Button variant="default" onClick={exportarExcelEgresos} disabled={loading}>
+              <Button className="flex-1 sm:flex-initial" variant="default" onClick={exportarExcelEgresos} disabled={loading}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
-                {loading ? 'Exportando...' : 'Exportar Excel'}
+                <span className="hidden sm:inline">{loading ? 'Exportando...' : 'Exportar Excel'}</span>
+                <span className="sm:hidden">Excel</span>
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {/* Formulario de nuevo egreso */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-6 bg-muted rounded-lg">
-            <Input
-              type="date"
-              value={nuevoEgreso.fecha}
-              onChange={(e) => setNuevoEgreso({...nuevoEgreso, fecha: e.target.value})}
-              placeholder="Fecha"
-            />
-            <Input
-              type="text"
-              placeholder="Proveedor"
-              value={nuevoEgreso.proveedor}
-              onChange={(e) => setNuevoEgreso({...nuevoEgreso, proveedor: e.target.value})}
-            />
-            <Input
-              type="text"
-              placeholder="Concepto"
-              value={nuevoEgreso.concepto}
-              onChange={(e) => setNuevoEgreso({...nuevoEgreso, concepto: e.target.value})}
-            />
-            <Input
-              type="number"
-              placeholder="Monto Exenta (₲)"
-              value={nuevoEgreso.monto_exenta}
-              onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_exenta: e.target.value})}
-              className="text-right"
-            />
-            <Input
-              type="number"
-              placeholder="Monto Gravada 5% (₲)"
-              value={nuevoEgreso.monto_sin_iva_5}
-              onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_sin_iva_5: e.target.value})}
-              className="text-right"
-            />
-            <Input
-              type="number"
-              placeholder="Monto Gravada 10% (₲)"
-              value={nuevoEgreso.monto_sin_iva_10}
-              onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_sin_iva_10: e.target.value})}
-              className="text-right"
-            />
-            <Select 
-              value={nuevoEgreso.categoria} 
-              onValueChange={(value: 'gastos' | 'familiares') => 
-                setNuevoEgreso({...nuevoEgreso, categoria: value})
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gastos">Gastos del Negocio</SelectItem>
-                <SelectItem value="familiares">Gastos Familiares</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              variant="expense"
-              onClick={agregarEgreso}
-              className="md:col-span-2"
-              disabled={loading}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Egreso
-            </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 p-4 sm:p-6 bg-muted rounded-lg">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha</label>
+              <Input
+                type="date"
+                value={nuevoEgreso.fecha}
+                onChange={(e) => setNuevoEgreso({...nuevoEgreso, fecha: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Proveedor *</label>
+              <Input
+                type="text"
+                placeholder="Nombre del proveedor"
+                value={nuevoEgreso.proveedor}
+                onChange={(e) => setNuevoEgreso({...nuevoEgreso, proveedor: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+              <label className="text-sm font-medium">Concepto</label>
+              <Input
+                type="text"
+                placeholder="Descripción del gasto"
+                value={nuevoEgreso.concepto}
+                onChange={(e) => setNuevoEgreso({...nuevoEgreso, concepto: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Monto Exenta</label>
+              <Input
+                type="number"
+                placeholder="₲ 0"
+                value={nuevoEgreso.monto_exenta}
+                onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_exenta: e.target.value})}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Monto Gravada 5%</label>
+              <Input
+                type="number"
+                placeholder="₲ 0"
+                value={nuevoEgreso.monto_sin_iva_5}
+                onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_sin_iva_5: e.target.value})}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Monto Gravada 10%</label>
+              <Input
+                type="number"
+                placeholder="₲ 0"
+                value={nuevoEgreso.monto_sin_iva_10}
+                onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_sin_iva_10: e.target.value})}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Categoría</label>
+              <Select 
+                value={nuevoEgreso.categoria} 
+                onValueChange={(value: 'gastos' | 'familiares') => 
+                  setNuevoEgreso({...nuevoEgreso, categoria: value})
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gastos">Gastos del Negocio</SelectItem>
+                  <SelectItem value="familiares">Gastos Familiares</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Button 
+                variant="expense"
+                onClick={agregarEgreso}
+                className="w-full mt-6"
+                disabled={loading}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Agregar Egreso</span>
+                <span className="sm:hidden">Agregar</span>
+              </Button>
+            </div>
           </div>
 
           {/* Tabla de egresos */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto border rounded-lg">
             <table className="min-w-full table-auto">
               <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Proveedor</th>
+                  <th className="sticky left-0 z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
+                  <th className="sticky left-[120px] z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Proveedor</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Concepto</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Excentas</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Gravadas 5%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">IVA 5%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Gravadas 10%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">IVA 10%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Excentas</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Gravadas 5%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">IVA 5%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Gravadas 10%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">IVA 10%</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Total</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Categoría</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Acciones</th>
+                  <th className="sticky right-0 z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {egresos.map((egreso) => (
                   <tr key={egreso.id} className="hover:bg-muted/50 transition-smooth">
-                    <td className="px-4 py-3 text-sm">{egreso.fecha}</td>
-                    <td className="px-4 py-3 text-sm font-medium">{egreso.proveedor}</td>
+                    <td className="sticky left-0 z-10 bg-white hover:bg-muted/50 px-4 py-3 text-sm">{egreso.fecha}</td>
+                    <td className="sticky left-[120px] z-10 bg-white hover:bg-muted/50 px-4 py-3 text-sm font-medium">{egreso.proveedor}</td>
                     <td className="px-4 py-3 text-sm">{egreso.concepto}</td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                       {formatearMoneda(egreso.tipo_iva === 'exenta' ? egreso.monto_total || 0 : egreso.monto_exenta || 0)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                       {formatearMoneda(egreso.tipo_iva === '5' ? egreso.monto_sin_iva || 0 : egreso.monto_sin_iva_5 || 0)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                       {formatearMoneda(egreso.tipo_iva === '5' ? egreso.monto_iva || 0 : egreso.monto_iva_5 || 0)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                       {formatearMoneda(egreso.tipo_iva === '10' ? egreso.monto_sin_iva || 0 : egreso.monto_sin_iva_10 || 0)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                       {formatearMoneda(egreso.tipo_iva === '10' ? egreso.monto_iva || 0 : egreso.monto_iva_10 || 0)}
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-right">
+                    <td className="px-4 py-3 text-sm font-bold text-right whitespace-nowrap">
                       {formatearMoneda((egreso.monto_total || 0) || 
                         ((egreso.monto_sin_iva || 0) + (egreso.monto_iva || 0)) ||
                         ((egreso.monto_sin_iva_10 || 0) + (egreso.monto_iva_10 || 0) + 
@@ -388,7 +414,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                         {egreso.categoria === 'gastos' ? 'Negocio' : 'Familiar'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="sticky right-0 z-10 bg-white hover:bg-muted/50 px-4 py-3">
                       <Button
                         variant="destructive"
                         size="sm"
@@ -403,10 +429,31 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
               </tbody>
             </table>
           </div>
-             <div className="flex justify-between items-center p-4 bg-white rounded-lg md:col-span-2">
-              <span className="font-bold text-lg">IVA Total:</span>
-              <span className="text-xl font-bold text-expense">{formatearMoneda(ivaEgresos.total || 0)}</span>
-            </div> 
+
+          {/* Resumen de IVA */}
+          <div className="mt-6 p-4 sm:p-6 bg-muted rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-lg">IVA Total:</span>
+                <span className="text-xl font-bold text-expense">{formatearMoneda(ivaEgresos.total || 0)}</span>
+              </div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex justify-between items-center">
+                  <span>IVA 10%:</span>
+                  <span className="font-medium">{formatearMoneda(egresos.reduce((total, egreso) => 
+                    egreso.tipo_iva === '10' ? total + (egreso.monto_iva || 0) : total, 0
+                  ))}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>IVA 5%:</span>
+                  <span className="font-medium">{formatearMoneda(egresos.reduce((total, egreso) => 
+                    egreso.tipo_iva === '5' ? total + (egreso.monto_iva || 0) : total, 0
+                  ))}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </CardContent>
       </Card>
     </div>
