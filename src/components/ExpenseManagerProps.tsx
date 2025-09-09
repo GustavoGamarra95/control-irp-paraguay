@@ -198,9 +198,19 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
   const exportarExcelEgresos = async () => {
     setLoading(true);
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        console.error('Error al obtener el usuario:', userError);
+        alert('Error de autenticación. Por favor, inicie sesión nuevamente.');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('egresos')
         .select('*')
+        .eq('user_id', user.id)
+        .eq('estado', 'activo')
         .order('fecha', { ascending: false });
 
       if (error) {
@@ -210,7 +220,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
       }
 
       if (!data || data.length === 0) {
-        alert('No hay datos para exportar');
+        alert('No hay datos activos para exportar');
         return;
       }
 
@@ -218,10 +228,10 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
         e.fecha,
         e.proveedor,
         e.concepto,
-        e.monto_sin_iva || 0,
-        e.monto_iva || 0,
-        e.monto_total || 0,
-        e.tipo_iva || 'N/A',
+        formatearMoneda(e.monto_sin_iva || 0),
+        formatearMoneda(e.monto_iva || 0),
+        formatearMoneda(e.monto_total || 0),
+        e.tipo_iva === 'exenta' ? 'Exenta' : `${e.tipo_iva}%`,
         e.categoria === 'gastos' ? 'Negocio' : 'Familiar'
       ]);
 
@@ -434,8 +444,6 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
           <div className="mt-6 p-4 sm:p-6 bg-muted rounded-lg">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-lg">IVA Total:</span>
-                <span className="text-xl font-bold text-expense">{formatearMoneda(ivaEgresos.total || 0)}</span>
               </div>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex justify-between items-center">

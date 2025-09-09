@@ -310,10 +310,19 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
   const exportarExcelIngresos = async () => {
     setLoading(true);
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (!user || userError) {
+        console.error('Error al obtener el usuario:', userError);
+        alert('Error de autenticación. Por favor, inicie sesión nuevamente.');
+        return;
+      }
+
       // Obtener datos actualizados de Supabase
       const { data, error } = await supabase
         .from('ingresos')
         .select('*')
+        .eq('user_id', user.id)
         .eq('estado', 'activo')
         .order('fecha', { ascending: false });
 
@@ -324,7 +333,7 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
       }
 
       if (!data || data.length === 0) {
-        alert('No hay datos para exportar');
+        alert('No hay datos activos para exportar');
         return;
       }
 
@@ -332,10 +341,10 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
         i.fecha,
         i.cliente,
         i.concepto,
-        i.monto,
+        formatearMoneda(i.monto),
         i.tipo_iva === 'exenta' ? 'Exenta' : `${i.tipo_iva}%`,
         i.tipo === 'servicios' ? 'Servicios' : 'Otros',
-        i.tipo_iva === 'exenta' ? 0 : i.tipo_iva === '5' ? i.monto * (5/105) : i.monto * (10/110)
+        formatearMoneda(i.tipo_iva === 'exenta' ? 0 : i.tipo_iva === '5' ? i.monto * (5/105) : i.monto * (10/110))
       ]);
 
       const columnas = ['Fecha', 'Cliente', 'Concepto', 'Monto', 'Tipo IVA', 'Tipo', 'IVA Calculado'];
@@ -532,14 +541,6 @@ const IncomeManager = ({ ingresos, setIngresos, ivaIngresos, totalIngresos }: In
           <div className="mt-6 p-4 sm:p-6 bg-income-light rounded-lg border border-income/20">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-base sm:text-lg">Total Ingresos:</span>
-                  <span className="text-xl sm:text-2xl font-bold text-income">{formatearMoneda(totalIngresos)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">IVA Total:</span>
-                  <span className="font-medium text-income">{formatearMoneda(ivaIngresos.total)}</span>
-                </div>
               </div>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex justify-between items-center">
