@@ -13,9 +13,22 @@ export interface Expense {
   fecha: string;
   proveedor: string;
   concepto: string;
-  monto: number;
-  tipoIva: '5' | '10' | 'exenta';
+  // Campos para el formato nuevo
+  monto_sin_iva?: number;
+  monto_iva?: number;
+  monto_total?: number;
+  tipo_iva?: '5' | '10' | 'exenta';
+  // Campos para el formato anterior
+  monto_sin_iva_10?: number;
+  monto_iva_10?: number;
+  monto_sin_iva_5?: number;
+  monto_iva_5?: number;
+  monto_exenta?: number;
   categoria: 'gastos' | 'familiares';
+  estado: 'activo' | 'inactivo';
+  created_at?: string;
+  updated_at?: string;
+  user_id: string;
 }
 
 export interface Configuration {
@@ -43,6 +56,9 @@ export interface IVACalculation {
   iva10: number;
   exentas: number;
   total: number;
+  monto5: number;
+  monto10: number;
+  montoExenta: number;
 }
 
 export interface Statistics {

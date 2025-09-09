@@ -109,11 +109,15 @@ const Index = () => {
   const resumenIRP = calcularIRP(ingresos, egresos, configuracion);
   const estadisticas: Statistics = {
     totalIngresos: ingresos.reduce((sum, i) => sum + i.monto, 0),
-    totalEgresos: egresos.reduce((sum, e) => sum + e.monto, 0),
+    totalEgresos: egresos.reduce((sum, e) => sum + (e.monto_total || 
+      ((e.monto_sin_iva || 0) + (e.monto_iva || 0)) || 
+      ((e.monto_sin_iva_10 || 0) + (e.monto_iva_10 || 0) + (e.monto_sin_iva_5 || 0) + (e.monto_iva_5 || 0) + (e.monto_exenta || 0))), 0),
     cantidadIngresos: ingresos.length,
     cantidadEgresos: egresos.length,
     promedioIngresos: ingresos.length > 0 ? ingresos.reduce((sum, i) => sum + i.monto, 0) / ingresos.length : 0,
-    promedioEgresos: egresos.length > 0 ? egresos.reduce((sum, e) => sum + e.monto, 0) / egresos.length : 0,
+    promedioEgresos: egresos.length > 0 ? egresos.reduce((sum, e) => sum + (e.monto_total || 
+      ((e.monto_sin_iva || 0) + (e.monto_iva || 0)) || 
+      ((e.monto_sin_iva_10 || 0) + (e.monto_iva_10 || 0) + (e.monto_sin_iva_5 || 0) + (e.monto_iva_5 || 0) + (e.monto_exenta || 0))), 0) / egresos.length : 0,
   };
 
   const guardarDatosEnSupabase = async () => {

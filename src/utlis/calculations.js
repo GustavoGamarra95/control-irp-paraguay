@@ -9,20 +9,20 @@ export const formatearMoneda = (valor) => {
 };
 
 export const calcularIva = (items) => {
-  // Para IVA 5%, el monto de IVA es: monto * 5/105
+  // Para IVA 5%
   const iva5 = items
     .filter(i => i.tipo_iva === '5')
-    .reduce((sum, i) => sum + (i.monto * 5/105), 0);
+    .reduce((sum, i) => sum + (i.monto_iva || 0), 0);
 
-  // Para IVA 10%, el monto de IVA es: monto * 10/110
+  // Para IVA 10%
   const iva10 = items
     .filter(i => i.tipo_iva === '10')
-    .reduce((sum, i) => sum + (i.monto * 10/110), 0);
+    .reduce((sum, i) => sum + (i.monto_iva || 0), 0);
 
   // Montos exentos
   const exentas = items
     .filter(i => i.tipo_iva === 'exenta')
-    .reduce((sum, i) => sum + i.monto, 0);
+    .reduce((sum, i) => sum + (i.monto_total || 0), 0);
 
   return { 
     iva5: Math.round(iva5), 
