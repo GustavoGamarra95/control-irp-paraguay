@@ -24,6 +24,8 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     monto_sin_iva_10: '0',
     monto_sin_iva_5: '0',
     monto_exenta: '0',
+    monto_iva_5: '0',
+    monto_iva_10: '0',
     categoria: 'gastos' as 'gastos' | 'familiares'
   });
   const [loading, setLoading] = useState(false);
@@ -53,36 +55,27 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
       return;
     }
 
-    // Determinar el tipo de IVA basado en los montos ingresados
-    let tipoIva = '10';
-    let montoSinIva = 0;
-    let montoIva = 0;
-    let montoTotal = 0;
-
+    // Calcular los montos de IVA
+    const montoIva5 = montoSinIva5 * 0.05;
+    const montoIva10 = montoSinIva10 * 0.1;
+    
+    // Determinar el tipo de IVA predominante
+    let tipoIva = 'exenta';
     if (montoSinIva10 > 0) {
       tipoIva = '10';
-      montoSinIva = montoSinIva10;
-      montoIva = montoSinIva10 * 0.1;
-      montoTotal = montoSinIva + montoIva;
     } else if (montoSinIva5 > 0) {
       tipoIva = '5';
-      montoSinIva = montoSinIva5;
-      montoIva = montoSinIva5 * 0.05;
-      montoTotal = montoSinIva + montoIva;
-    } else if (montoExenta > 0) {
-      tipoIva = 'exenta';
-      montoSinIva = montoExenta;
-      montoIva = 0;
-      montoTotal = montoExenta;
     }
     
     const egreso = {
       fecha: nuevoEgreso.fecha,
       proveedor: nuevoEgreso.proveedor,
       concepto: nuevoEgreso.concepto || '-',
-      monto_sin_iva: montoSinIva,
-      monto_iva: montoIva,
-      monto_total: montoTotal,
+      monto_sin_iva: montoSinIva10 + montoSinIva5,
+      monto_iva: montoIva10 + montoIva5,
+      monto_sin_iva_10: montoSinIva10,
+      monto_sin_iva_5: montoSinIva5,
+      monto_exenta: montoExenta,
       tipo_iva: tipoIva,
       categoria: nuevoEgreso.categoria,
       estado: 'activo' as const,
@@ -112,6 +105,8 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
           monto_sin_iva_10: '0',
           monto_sin_iva_5: '0',
           monto_exenta: '0',
+          monto_iva_5: '0',
+          monto_iva_10: '0',
           categoria: 'gastos'
         });
       }
@@ -350,10 +345,12 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Proveedor</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Concepto</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Monto sin IVA</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">IVA</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Total</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tipo</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Excentas</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Gravadas 5%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">IVA 5%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Gravadas 10%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">IVA 10%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Total</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Categoría</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Acciones</th>
                 </tr>
@@ -364,13 +361,27 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                     <td className="px-4 py-3 text-sm">{egreso.fecha}</td>
                     <td className="px-4 py-3 text-sm font-medium">{egreso.proveedor}</td>
                     <td className="px-4 py-3 text-sm">{egreso.concepto}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatearMoneda(egreso.monto_sin_iva || 0)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatearMoneda(egreso.monto_iva || 0)}</td>
-                    <td className="px-4 py-3 text-sm font-bold text-right">{formatearMoneda(egreso.monto_total || 0)}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={egreso.tipo_iva === 'exenta' ? 'secondary' : 'default'}>
-                        {egreso.tipo_iva === 'exenta' ? 'Exenta' : `${egreso.tipo_iva || 'N/A'}%`}
-                      </Badge>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {formatearMoneda(egreso.tipo_iva === 'exenta' ? egreso.monto_total || 0 : egreso.monto_exenta || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {formatearMoneda(egreso.tipo_iva === '5' ? egreso.monto_sin_iva || 0 : egreso.monto_sin_iva_5 || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {formatearMoneda(egreso.tipo_iva === '5' ? egreso.monto_iva || 0 : egreso.monto_iva_5 || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {formatearMoneda(egreso.tipo_iva === '10' ? egreso.monto_sin_iva || 0 : egreso.monto_sin_iva_10 || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {formatearMoneda(egreso.tipo_iva === '10' ? egreso.monto_iva || 0 : egreso.monto_iva_10 || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-right">
+                      {formatearMoneda((egreso.monto_total || 0) || 
+                        ((egreso.monto_sin_iva || 0) + (egreso.monto_iva || 0)) ||
+                        ((egreso.monto_sin_iva_10 || 0) + (egreso.monto_iva_10 || 0) + 
+                         (egreso.monto_sin_iva_5 || 0) + (egreso.monto_iva_5 || 0) + 
+                         (egreso.monto_exenta || 0)))}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={egreso.categoria === 'gastos' ? 'default' : 'secondary'}>
@@ -392,34 +403,10 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
               </tbody>
             </table>
           </div>
-
-          {/* Resumen de egresos */}
-          <div className="mt-6 p-6 bg-expense-light rounded-lg border border-expense/20 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex justify-between items-center p-4 bg-white rounded-lg">
-              <span className="font-bold text-lg">Total Pago:</span>
-              <span className="text-2xl font-bold text-expense">{formatearMoneda(totalEgresos || 0)}</span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-white rounded-lg">
-              <span className="font-bold text-lg">Exentas:</span>
-              <span className="text-xl font-bold text-expense">{formatearMoneda(ivaEgresos.exentas || 0)}</span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-white rounded-lg">
-              <span className="font-bold text-lg">Gravadas 5%:</span>
-              <span className="text-xl font-bold text-expense">
-                {formatearMoneda((ivaEgresos.iva5 * 20) || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-white rounded-lg">
-              <span className="font-bold text-lg">Gravadas 10%:</span>
-              <span className="text-xl font-bold text-expense">
-                {formatearMoneda((ivaEgresos.iva10 * 10) || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-white rounded-lg md:col-span-2">
+             <div className="flex justify-between items-center p-4 bg-white rounded-lg md:col-span-2">
               <span className="font-bold text-lg">IVA Total:</span>
               <span className="text-xl font-bold text-expense">{formatearMoneda(ivaEgresos.total || 0)}</span>
-            </div>
-          </div>
+            </div> 
         </CardContent>
       </Card>
     </div>
