@@ -101,12 +101,41 @@ const Index = () => {
     };
   }, []);
 
-  // ...otras funciones auxiliares y lógica (guardarDatosEnSupabase, leerDatosDeSupabase, exportarDatos, renderContenido)...
+  // Validar datos de ingresos y egresos antes de calcular IVA e IRP
+  // Actualizar la validación para manejar ingresos sin monto_total
+  const validarDatos = (items) => {
+    return items.filter(item => {
+      if (!item.tipo_iva || !['5', '10', 'exenta'].includes(item.tipo_iva)) {
+        console.warn("Elemento con tipo_iva inválido:", item);
+        return false;
+      }
+      if ((!item.monto_total && !item.monto) || isNaN(item.monto_total || item.monto)) {
+        console.warn("Elemento con monto_total o monto inválido:", item);
+        return false;
+      }
+      // Si monto_total no está definido, usar monto como respaldo
+      if (!item.monto_total) {
+        item.monto_total = item.monto;
+      }
+      return true;
+    });
+  };
 
-  // Calcula valores derivados
-  const ivaIngresos = calcularIva(ingresos);
-  const ivaEgresos = calcularIva(egresos);
-  const resumenIRP = calcularIRP(ingresos, egresos, configuracion);
+  const ingresosValidados = validarDatos(ingresos);
+  const egresosValidados = validarDatos(egresos);
+
+  console.log("Ingresos validados:", ingresosValidados);
+  console.log("Egresos validados:", egresosValidados);
+
+  const ivaIngresos = calcularIva(ingresosValidados);
+  console.log("Resultado de calcularIva para ingresos:", ivaIngresos);
+
+  const ivaEgresos = calcularIva(egresosValidados);
+  console.log("Resultado de calcularIva para egresos:", ivaEgresos);
+
+  const resumenIRP = calcularIRP(ingresosValidados, egresosValidados, configuracion);
+  console.log("Resumen IRP calculado:", resumenIRP);
+
   const estadisticas: Statistics = {
     totalIngresos: ingresos.reduce((sum, i) => sum + i.monto, 0),
     totalEgresos: egresos.reduce((sum, e) => sum + (e.monto_total || 
