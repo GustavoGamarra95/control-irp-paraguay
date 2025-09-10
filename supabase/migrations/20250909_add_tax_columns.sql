@@ -1,22 +1,16 @@
--- Add new tax-related columns
+-- Asegurar que todas las columnas necesarias estén presentes
 ALTER TABLE egresos
-ADD COLUMN IF NOT EXISTS monto_sin_iva_10 numeric(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS monto_sin_iva_5 numeric(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS monto_exenta numeric(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS monto_iva_10 numeric(10,2) GENERATED ALWAYS AS (
-    COALESCE(monto_sin_iva_10, 0) * 0.1
-) STORED,
-ADD COLUMN IF NOT EXISTS monto_iva_5 numeric(10,2) GENERATED ALWAYS AS (
-    COALESCE(monto_sin_iva_5, 0) * 0.05
-) STORED;
+ADD COLUMN IF NOT EXISTS monto_sin_iva_10 NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS monto_sin_iva_5 NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS monto_exenta NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS monto_iva_10 NUMERIC(15, 2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS monto_iva_5 NUMERIC(15, 2) DEFAULT 0;
 
--- Update monto_total computation to use new columns
+-- Actualizar la columna monto_total para almacenar datos informados
 ALTER TABLE egresos
 DROP COLUMN monto_total,
-ADD COLUMN monto_total numeric(10,2) GENERATED ALWAYS AS (
-    COALESCE(monto_sin_iva_10, 0) + 
-    (COALESCE(monto_sin_iva_10, 0) * 0.1) + 
-    COALESCE(monto_sin_iva_5, 0) + 
-    (COALESCE(monto_sin_iva_5, 0) * 0.05) + 
-    COALESCE(monto_exenta, 0)
-) STORED;
+ADD COLUMN monto_total NUMERIC(15, 2) DEFAULT 0;
+
+-- Agregar columna valor_total a la tabla egresos
+ALTER TABLE egresos
+ADD COLUMN IF NOT EXISTS valor_total NUMERIC(15, 2) DEFAULT 0;

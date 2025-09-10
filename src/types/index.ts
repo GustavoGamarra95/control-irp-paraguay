@@ -17,6 +17,7 @@ export interface Expense {
   monto_sin_iva?: number;
   monto_iva?: number;
   monto_total?: number;
+  valor_total?: number;
   tipo_iva?: '5' | '10' | 'exenta';
   // Campos para el formato anterior
   monto_sin_iva_10?: number;

@@ -28,11 +28,11 @@ export function TaxSummary({ resumenIRP, ivaIngresos, ivaEgresos, onExportData }
                 <h4 className="font-medium text-income mb-3">IVA Ingresos</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>IVA 5%:</span>
+                    <span>Monto Gravada 5%:</span>
                     <span className="font-medium">{formatearMoneda(ivaIngresos.iva5)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>IVA 10%:</span>
+                    <span>Monto Gravada 10%:</span>
                     <span className="font-medium">{formatearMoneda(ivaIngresos.iva10)}</span>
                   </div>
                   <div className="flex justify-between font-medium border-t pt-2">
@@ -46,11 +46,11 @@ export function TaxSummary({ resumenIRP, ivaIngresos, ivaEgresos, onExportData }
                 <h4 className="font-medium text-expense mb-3">IVA Egresos</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>IVA 5%:</span>
+                    <span>Monto Gravada 5%:</span>
                     <span className="font-medium">{formatearMoneda(ivaEgresos.iva5)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>IVA 10%:</span>
+                    <span>Monto Gravada 10%:</span>
                     <span className="font-medium">{formatearMoneda(ivaEgresos.iva10)}</span>
                   </div>
                   <div className="flex justify-between font-medium border-t pt-2">

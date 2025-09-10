@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatearMoneda, exportarExcel } from '@/utlis/calculations';
+import { formatearNumero } from '@/lib/formatters';
 import { supabase } from '@/lib/supabaseClient';
 import type { Expense, IVACalculation } from '@/types';
 
@@ -21,12 +22,15 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     fecha: new Date().toISOString().split('T')[0],
     proveedor: '',
     concepto: '',
+    monto_total: '0',
     monto_sin_iva_10: '0',
     monto_sin_iva_5: '0',
     monto_exenta: '0',
-    monto_iva_5: '0',
-    monto_iva_10: '0',
-    categoria: 'gastos' as 'gastos' | 'familiares'
+    categoria: 'gastos' as 'gastos' | 'familiares',
+    tipo_iva: 'exenta', // Valor inicial para el tipo de IVA
+    monto_iva_10: '0', // Valor inicial para el IVA 10%
+    monto_sin_iva: '0', // Valor inicial para el monto sin IVA
+    monto_iva: '0', // Valor inicial para el monto de IVA
   });
   const [loading, setLoading] = useState(false);
 
@@ -36,50 +40,39 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
       return;
     }
 
+    // Convertir los valores a números divididos por 1000 para ajustarse a la precisión de la base de datos
+    const montoTotal = parseFloat(nuevoEgreso.monto_total) || 0;
+    if (montoTotal <= 0) {
+      alert('Por favor ingrese un valor total válido mayor a 0');
+      return;
+    }
+
     const montoExenta = parseFloat(nuevoEgreso.monto_exenta) || 0;
     const montoSinIva5 = parseFloat(nuevoEgreso.monto_sin_iva_5) || 0;
     const montoSinIva10 = parseFloat(nuevoEgreso.monto_sin_iva_10) || 0;
 
-    if ((montoExenta + montoSinIva5 + montoSinIva10) <= 0) {
-      alert('Por favor ingrese al menos un monto válido mayor a 0');
-      return;
-    }
-
     setLoading(true);
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (!user || userError) {
       alert('Debes iniciar sesión para agregar egresos');
       setLoading(false);
       return;
     }
 
-    // Calcular los montos de IVA
-    const montoIva5 = montoSinIva5 * 0.05;
-    const montoIva10 = montoSinIva10 * 0.1;
-    
-    // Determinar el tipo de IVA predominante
-    let tipoIva = 'exenta';
-    if (montoSinIva10 > 0) {
-      tipoIva = '10';
-    } else if (montoSinIva5 > 0) {
-      tipoIva = '5';
-    }
-    
+    // Eliminar cálculos automáticos y usar los valores ingresados directamente
     const egreso = {
-      fecha: nuevoEgreso.fecha,
-      proveedor: nuevoEgreso.proveedor,
-      concepto: nuevoEgreso.concepto || '-',
-      monto_sin_iva: montoSinIva10 + montoSinIva5,
-      monto_iva: montoIva10 + montoIva5,
-      monto_sin_iva_10: montoSinIva10,
-      monto_sin_iva_5: montoSinIva5,
-      monto_exenta: montoExenta,
-      tipo_iva: tipoIva,
-      categoria: nuevoEgreso.categoria,
-      estado: 'activo' as const,
-      user_id: user.id
+      ...nuevoEgreso,
+      user_id: user.id,
+      tipo_iva: nuevoEgreso.tipo_iva, // Usar el tipo de IVA ingresado
+      monto_sin_iva_5: parseFloat(nuevoEgreso.monto_sin_iva_5), // Reflejar valores de 5%
+      monto_sin_iva_10: parseFloat(nuevoEgreso.monto_sin_iva_10), // Reflejar valores de 10%
+      monto_iva_10: parseFloat(nuevoEgreso.monto_iva_10), // Usar el valor ingresado directamente
+      monto_total: parseFloat(nuevoEgreso.monto_total),
+      valor_total: parseFloat(nuevoEgreso.monto_total),
+      monto_sin_iva: parseFloat(nuevoEgreso.monto_sin_iva), // Usar el valor ingresado directamente para monto_sin_iva
+      monto_iva: parseFloat(nuevoEgreso.monto_iva), // Usar el valor ingresado directamente para monto_iva
     };
 
     try {
@@ -97,17 +90,20 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
 
       if (nuevoEgresoData) {
         setEgresos([nuevoEgresoData, ...egresos]);
-        
+
         setNuevoEgreso({
           fecha: new Date().toISOString().split('T')[0],
           proveedor: '',
           concepto: '',
+          monto_total: '0',
           monto_sin_iva_10: '0',
           monto_sin_iva_5: '0',
           monto_exenta: '0',
-          monto_iva_5: '0',
-          monto_iva_10: '0',
-          categoria: 'gastos'
+          categoria: 'gastos',
+          tipo_iva: 'exenta',
+          monto_iva_10: '0', // Reiniciar a valor por defecto
+          monto_sin_iva: '0', // Reiniciar a valor por defecto
+          monto_iva: '0', // Reiniciar a valor por defecto
         });
       }
     } catch (error) {
@@ -122,7 +118,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     setLoading(true);
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (!user || userError) {
         console.error('Error al obtener el usuario:', userError);
         return;
@@ -171,7 +167,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
 
       const { error: updateError } = await supabase
         .from('egresos')
-        .update({ 
+        .update({
           estado: 'anulado',
           updated_at: new Date().toISOString()
         })
@@ -199,7 +195,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
     setLoading(true);
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (!user || userError) {
         console.error('Error al obtener el usuario:', userError);
         alert('Error de autenticación. Por favor, inicie sesión nuevamente.');
@@ -228,9 +224,12 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
         e.fecha,
         e.proveedor,
         e.concepto,
-        formatearMoneda(e.monto_sin_iva || 0),
-        formatearMoneda(e.monto_iva || 0),
-        formatearMoneda(e.monto_total || 0),
+        formatearNumero(e.monto_exenta || 0),
+        formatearNumero(e.monto_sin_iva_5 || 0),
+        formatearNumero(e.monto_sin_iva_10 || 0),
+        formatearNumero((e.monto_total || 0) ||
+          ((e.monto_sin_iva_10 || 0) + (e.monto_sin_iva_5 || 0) +
+            (e.monto_exenta || 0))),
         e.tipo_iva === 'exenta' ? 'Exenta' : `${e.tipo_iva}%`,
         e.categoria === 'gastos' ? 'Negocio' : 'Familiar'
       ]);
@@ -238,14 +237,14 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
       const columnas = [
         'Fecha',
         'Proveedor',
+        'Valor Total',
         'Concepto',
-        'Monto sin IVA',
-        'IVA',
-        'Total',
-        'Tipo IVA',
+        'Monto Exenta',
+        'Monto Gravada 5%',
+        'Monto Gravada 10%',
         'Categoría'
       ];
-      
+
       exportarExcel(datos, 'egresos', columnas);
     } catch (error) {
       console.error('Error:', error);
@@ -291,7 +290,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
               <Input
                 type="date"
                 value={nuevoEgreso.fecha}
-                onChange={(e) => setNuevoEgreso({...nuevoEgreso, fecha: e.target.value})}
+                onChange={(e) => setNuevoEgreso({ ...nuevoEgreso, fecha: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -300,7 +299,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                 type="text"
                 placeholder="Nombre del proveedor"
                 value={nuevoEgreso.proveedor}
-                onChange={(e) => setNuevoEgreso({...nuevoEgreso, proveedor: e.target.value})}
+                onChange={(e) => setNuevoEgreso({ ...nuevoEgreso, proveedor: e.target.value })}
               />
             </div>
             <div className="space-y-2 sm:col-span-2 lg:col-span-1">
@@ -309,45 +308,71 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                 type="text"
                 placeholder="Descripción del gasto"
                 value={nuevoEgreso.concepto}
-                onChange={(e) => setNuevoEgreso({...nuevoEgreso, concepto: e.target.value})}
+                onChange={(e) => setNuevoEgreso({ ...nuevoEgreso, concepto: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Monto Exenta</label>
+              <label className="text-sm font-medium">Monto *</label>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 placeholder="₲ 0"
-                value={nuevoEgreso.monto_exenta}
-                onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_exenta: e.target.value})}
-                className="text-right"
+                value={formatearMoneda(parseFloat(nuevoEgreso.monto_total) || 0)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^\d]/g, '');
+                  setNuevoEgreso({ ...nuevoEgreso, monto_total: value });
+                }}
+                className="text-right font-bold"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Monto Gravada 5%</label>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 placeholder="₲ 0"
-                value={nuevoEgreso.monto_sin_iva_5}
-                onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_sin_iva_5: e.target.value})}
+                value={formatearMoneda(parseFloat(nuevoEgreso.monto_sin_iva_5) || 0)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^\d]/g, '');
+                  setNuevoEgreso({ ...nuevoEgreso, monto_sin_iva_5: value });
+                }}
                 className="text-right"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Monto Gravada 10%</label>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 placeholder="₲ 0"
-                value={nuevoEgreso.monto_sin_iva_10}
-                onChange={(e) => setNuevoEgreso({...nuevoEgreso, monto_sin_iva_10: e.target.value})}
+                value={formatearMoneda(parseFloat(nuevoEgreso.monto_sin_iva_10) || 0)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^\d]/g, '');
+                  setNuevoEgreso({ ...nuevoEgreso, monto_sin_iva_10: value });
+                }}
+                className="text-right"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Monto Exenta</label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="₲ 0"
+                value={formatearMoneda(parseFloat(nuevoEgreso.monto_exenta) || 0)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^\d]/g, '');
+                  setNuevoEgreso({ ...nuevoEgreso, monto_exenta: value });
+                }}
                 className="text-right"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoría</label>
-              <Select 
-                value={nuevoEgreso.categoria} 
-                onValueChange={(value: 'gastos' | 'familiares') => 
-                  setNuevoEgreso({...nuevoEgreso, categoria: value})
+              <Select
+                value={nuevoEgreso.categoria}
+                onValueChange={(value: 'gastos' | 'familiares') =>
+                  setNuevoEgreso({ ...nuevoEgreso, categoria: value })
                 }
               >
                 <SelectTrigger>
@@ -360,7 +385,7 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <Button 
+              <Button
                 variant="expense"
                 onClick={agregarEgreso}
                 className="w-full mt-6"
@@ -381,12 +406,10 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                   <th className="sticky left-0 z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
                   <th className="sticky left-[120px] z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Proveedor</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Concepto</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Excentas</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Gravadas 5%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">IVA 5%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Gravadas 10%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">IVA 10%</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Total</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Valor Total</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Monto Exenta</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Monto Gravada 10%</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-foreground whitespace-nowrap">Monto Gravada 5%</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Categoría</th>
                   <th className="sticky right-0 z-10 bg-muted px-4 py-3 text-left text-sm font-medium text-foreground">Acciones</th>
                 </tr>
@@ -397,28 +420,10 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                     <td className="sticky left-0 z-10 bg-white hover:bg-muted/50 px-4 py-3 text-sm">{egreso.fecha}</td>
                     <td className="sticky left-[120px] z-10 bg-white hover:bg-muted/50 px-4 py-3 text-sm font-medium">{egreso.proveedor}</td>
                     <td className="px-4 py-3 text-sm">{egreso.concepto}</td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      {formatearMoneda(egreso.tipo_iva === 'exenta' ? egreso.monto_total || 0 : egreso.monto_exenta || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      {formatearMoneda(egreso.tipo_iva === '5' ? egreso.monto_sin_iva || 0 : egreso.monto_sin_iva_5 || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      {formatearMoneda(egreso.tipo_iva === '5' ? egreso.monto_iva || 0 : egreso.monto_iva_5 || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      {formatearMoneda(egreso.tipo_iva === '10' ? egreso.monto_sin_iva || 0 : egreso.monto_sin_iva_10 || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      {formatearMoneda(egreso.tipo_iva === '10' ? egreso.monto_iva || 0 : egreso.monto_iva_10 || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-bold text-right whitespace-nowrap">
-                      {formatearMoneda((egreso.monto_total || 0) || 
-                        ((egreso.monto_sin_iva || 0) + (egreso.monto_iva || 0)) ||
-                        ((egreso.monto_sin_iva_10 || 0) + (egreso.monto_iva_10 || 0) + 
-                         (egreso.monto_sin_iva_5 || 0) + (egreso.monto_iva_5 || 0) + 
-                         (egreso.monto_exenta || 0)))}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">{formatearMoneda(egreso.monto_total || 0)}</td>
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">{formatearMoneda(egreso.monto_exenta || 0)}</td>
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">{formatearMoneda(egreso.monto_sin_iva_10 || 0)}</td>
+                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">{formatearMoneda(egreso.monto_sin_iva_5 || 0)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={egreso.categoria === 'gastos' ? 'default' : 'secondary'}>
                         {egreso.categoria === 'gastos' ? 'Negocio' : 'Familiar'}
@@ -438,28 +443,6 @@ export function ExpenseManager({ egresos, setEgresos, ivaEgresos, totalEgresos }
                 ))}
               </tbody>
             </table>
-          </div>
-
-          {/* Resumen de IVA */}
-          <div className="mt-6 p-4 sm:p-6 bg-muted rounded-lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex justify-between items-center">
-              </div>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="flex justify-between items-center">
-                  <span>IVA 10%:</span>
-                  <span className="font-medium">{formatearMoneda(egresos.reduce((total, egreso) => 
-                    egreso.tipo_iva === '10' ? total + (egreso.monto_iva || 0) : total, 0
-                  ))}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>IVA 5%:</span>
-                  <span className="font-medium">{formatearMoneda(egresos.reduce((total, egreso) => 
-                    egreso.tipo_iva === '5' ? total + (egreso.monto_iva || 0) : total, 0
-                  ))}</span>
-                </div>
-              </div>
-            </div>
           </div>
 
         </CardContent>
